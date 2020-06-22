@@ -8,9 +8,12 @@ const mongoose = require('mongoose'); // Mongoose is an object data modeling (OD
 
 const productRoutes = require('./api/routes/products.js');
 const orderRoutes = require('./api/routes/orders');
+const userRoutes = require('./api/routes/user');
 
 mongoose.connect(
-  'mongodb+srv://admin:admin@cluster0-kwpux.mongodb.net/<dbname>?retryWrites=true&w=majority',
+  'mongodb+srv://admin:' +
+    process.env.MONGO_ATLAS_PW +
+    '@cluster0-kwpux.mongodb.net/<dbname>?retryWrites=true&w=majority',
   {
     useNewUrlParser: true,
     useUnifiedTopology: true,
@@ -21,6 +24,7 @@ mongoose.Promise = global.Promise; // use default node.js promise implementation
 // tell express to funnel all the requests through this middleware morgan logger
 app.use(morgan('dev'));
 // body parser
+app.use('/uploads', express.static('uploads')); // .static is a middleware that makes a folder public or static in this case the folder is uploads
 app.use(bodyParser.urlencoded({ extended: false }));
 app.use(bodyParser.json());
 
@@ -42,6 +46,7 @@ app.use((req, res, next) => {
 app.use('/products', productRoutes); // use sets up a middleware which is basically an incoming request has to go through app use
 //and whatever we pass thorough it
 app.use('/orders', orderRoutes);
+app.use('/user', userRoutes);
 
 // Part below this is error handling
 

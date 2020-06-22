@@ -1,12 +1,42 @@
 const express = require('express');
 const router = express.Router();
 const mongoose = require('mongoose');
+const multer = require('multer'); //multer is used to parse forms, install it by npm install --save multer
+const checkAuth = require('../middleware/check-auth');
+
+//storage to configure the location a name of the file uploaded
+const storage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    cb(null, './uploads/');
+  },
+  filename: function (req, file, cb) {
+    cb(null, new Date().toISOString().replace(/:/g, '-') + file.originalname);
+  },
+});
+
+const fileFilter = (req, file, cb) => {
+  // reject a file
+  if (file.mimetype === 'image/jpeg' || file.mimetype === 'image/png') {
+    cb(null, true);
+  } else {
+    cb(null, false);
+  }
+};
+
+const upload = multer({
+  storage: storage,
+  limits: {
+    fileSize: 1024 * 1024 * 5,
+  },
+  fileFilter: fileFilter,
+}); // setting a folder to where all the files will go, the folder gets created automatically once a post request is sent
+
 const Product = require('../models/product');
-const { request } = require('../../app');
+// const request = require('../../app');
 
 router.get('/', (req, res, next) => {
   Product.find()
-    .select('name price _id') // this is used to select all the things that required to be shown in response
+    .select('name price _id productImage') // this is used to select all the things that required to be shown in response
     .exec()
     .then((docs) => {
       const response = {
@@ -16,6 +46,7 @@ router.get('/', (req, res, next) => {
           return {
             name: doc.name,
             price: doc.price,
+            productImage: doc.productImage,
             _id: doc._id,
             request: {
               type: 'GET',
@@ -34,11 +65,16 @@ router.get('/', (req, res, next) => {
     });
 });
 
-router.post('/', (req, res, next) => {
+// added middleware in the POST method upload
+//upload.single() means we will accept one file only also it is a handler and we can add as many as we want
+// multer not only gives us request file but also gives a request body
+router.post('/', checkAuth, upload.single('productImage'), (req, res, next) => {
+  // req.file is available because upload middleware was executed beforehand in the POST route
   const product = new Product({
     _id: new mongoose.Types.ObjectId(),
     name: req.body.name,
     price: req.body.price,
+    productImage: req.file.path,
   });
   product
     .save()
@@ -68,7 +104,7 @@ router.post('/', (req, res, next) => {
 router.get('/:productId', (req, res, next) => {
   const id = req.params.productId;
   Product.findById(id)
-    .select('name price _id')
+    .select('name price _id productImage')
     .exec()
     .then((doc) => {
       console.log('from database', doc);
@@ -103,7 +139,7 @@ router.get('/:productId', (req, res, next) => {
   //   }
 });
 
-router.patch('/:productId', (req, res, next) => {
+router.patch('/:productId', checkAuth, (req, res, next) => {
   //   res.status(200).json({
   //     message: 'updated Product!',
   //   });
@@ -131,7 +167,7 @@ router.patch('/:productId', (req, res, next) => {
     });
 });
 
-router.delete('/:productId', (req, res, next) => {
+router.delete('/:productId', checkAuth, (req, res, next) => {
   //   res.status(200).json({
   //     message: 'Deleted Product!',
   //   });
